@@ -1,21 +1,24 @@
-#!/usr/bin/perl
+package Text::Perlate;
 
+use 5.006;
 use strict;
 use warnings;
+
+our $VERSION = '0.91';
 
 =pod
 
 =head1 NAME
 
-Template::Perlate - Template module using Perl as the langauge.
+Text::Perlate - Template module using Perl as the langauge.
 
 =head1 SYNOPSIS
 
-	use Template::Perlate;
+	use Text::Perlate;
 
-	$Template::Perlate::defaults->{...} = ...;
+	$Text::Perlate::defaults->{...} = ...;
 
-	print Template::Perlate::main($options);
+	print Text::Perlate::main($options);
 
 To catch errors, wrap calls to this module in eval{} and check $@.
 
@@ -86,9 +89,9 @@ example Perl program that calls a perlate:
 	#!/usr/bin/perl
 	use strict;
 	use warnings;
-	use Template::Perlate;
+	use Text::Perlate;
 	eval {
-		print Template::Perlate::main({
+		print Text::Perlate::main({
 			input_file => "my.html.perlate",
 			params => {
 				enabled => 1,
@@ -101,7 +104,7 @@ example Perl program that calls a perlate:
 		print STDERR "An error occurred:  $@\n";
 	}
 
-The file my.html.perlate may contain:
+The file my.html.perlate might contain:
 
 	<html><body>
 	[[- if($_params->{enabled}) { ]]
@@ -224,7 +227,7 @@ module containing all the real logic (so that mod_perl caches the bulk of the
 compilation and to avoid warnings about redefined functions).  Searching @INC
 fits in nicely with that design.
 
-Assign a true value to $Template::Perlate::debug to see some debugging
+Assign a true value to $Text::Perlate::debug to see some debugging
 information.
 
 =head1 CAVEATS
@@ -267,17 +270,18 @@ you send me a bug report.
 Again, be careful not to put comments in tags unless the whole tag is marked as
 a comment, as described above.
 
-Recursive templates are supported.
+Recursive perlates are supported.
 
 =head1 INSTALLATION
 
-Simply copy this file to .../lib/perl5/site_perl/5.x.x/Template/Perlate.pm .
-
-This module has no dependencies besides Perl itself.
+This module has no dependencies besides Perl itself.  Follow your favorite
+standard installation procedure.
 
 =head1 VERSION & HISTORY
 
 =over
+
+=item * Version 0.91, not yet released.
 
 =item * Version 0.90, released 2007-03-02.  This is likely to be identical to
 version 1.0.  Version 1.0 may contain incompatible changes, but this is
@@ -295,37 +299,36 @@ many people use this software.  Thanks!
 
 =head1 LICENSE
 
-This may be distributed under the terms below (BSD'ish), or the same terms as
-Perl, or under the GPL.
-
-Copyright (C) 2006-2007 Leif Pedersen. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
- 1. Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE.
+ This may be distributed under the terms below (BSD'ish) or under the GPL.
+ 
+ Copyright (C) 2006-2007 Leif Pedersen. All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ 
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+ 
+  2. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the
+     distribution.
+ 
+ THIS SOFTWARE IS PROVIDED BY AUTHORS AND CONTRIBUTORS "AS IS" AND ANY
+ EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL AUTHORS OR CONTRIBUTORS BE
+ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-
-package Template::Perlate;
 
 our $debug;
 

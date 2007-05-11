@@ -1,0 +1,4 @@
+Makefile.PL
+MANIFEST
+t/Text-Perlate.t
+lib/Text/Perlate.pm
