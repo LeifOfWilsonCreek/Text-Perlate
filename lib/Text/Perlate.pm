@@ -121,9 +121,10 @@ remove one line of whitespace in the source before the tag.  One trailing
 hyphen means to remove one line of whitespace after the tag.  N hyphens removes
 up to N lines, and a plus removes all blank lines.  Removal always stops at the
 first nonblank line.  Next, there may be an octothorpe (#), which indicates
-that the entire tag is a comment.  A tag cannot contain both code and comments
-(see caveat below).  To summarize, the tags have the following syntax (note the
-position of the required whitespace):
+that the entire tag is a comment.  Regular Perl comments within a tag are valid
+and terminate at the end of the tag or the first newline, as might be expected.
+To summarize, the tags have the following syntax (note the position of the
+required whitespace):
 
 	\[\[(\-*|\+)#?\s.*\s(\-*|\+)\]\]
 
@@ -148,27 +149,6 @@ the same perlate.  This can be useful on a web page, for example, if there is a
 bit of HTML code that needs to be repeated in several places.  (If this doesn't
 quite make sense, try executing the code above with the I<preprocess_only>
 flag.)
-
-=head2 A NON-COMMENT TAG MAY NOT CONTAIN ANY COMMENTS.
-
-A comment in the perlate code will screw up later tags on the same line.  The
-only correct way to insert a comment is to use [[# comment ]] with no
-whitespace between [[ and #.  This tells Perlate that the whole tag should be
-ignored even if it contains newlines.
-
-Consider:  [[ # foo ]] some HTML [[ _echo('bar'); ]]
-
-These two tags have no newline between them, so the whole line will be a
-comment, rather than just the first tag.  Obviously, a coder would expect the
-comment to end where the tag ends.  At best, this causes a syntax error when
-Perlate tries to eval the code.  (If this doesn't quite make sense, try adding
-a comment to a simple perlate and run it with the I<preprocess_only> flag.)  We
-can't just insert a newline after every tag, because that would screw up the
-line numbers reported by Perl errors and warnings in the final eval.  Sadly,
-Perl's grammar is so complex that parsing out comments would entail parsing
-most of Perl.  So we arrive at this caveat:
-
-A NON-COMMENT TAG MAY NOT CONTAIN ANY COMMENTS.
 
 =head1 OPTIONS
 
@@ -204,9 +184,9 @@ order is always:  current directory, $options->{path}, $defaults->{path}, @INC.
 The path option as seen from inside the perlate (called $_options->{path})
 includes all of these directories.
 
-=item * $options->{rawperl} may be set to true to indicate that the whole file
-is Perl code without [[ ]] tags.  This is useful for using parameter passing
-and searching $options->{path}.  This is probably not going to be useful very
+=item * $options->{raw} may be set to true to indicate that the whole file is
+Perl code without [[ ]] tags.  This is useful for using parameter passing and
+searching $options->{path}.  This is probably not going to be useful very
 often, except perhaps for debugging.
 
 =item * $options->{preprocess_only} may be set to true to return the
@@ -221,11 +201,10 @@ syntax error.
 
 The @INC list of directories is automatically appended to the search path.
 This means you can put perlates in your lib directory beside any modules that
-call them.  After all, a perlate represents a module (in a loose sense).  A
+call them.  After all, a perlate represents a module (in a loose sense).  One
 common approach in large web applications uses a small index.pl file to call a
-module containing all the real logic (so that mod_perl caches the bulk of the
-compilation and to avoid warnings about redefined functions).  Searching @INC
-fits in nicely with that design.
+module containing all the real logic.  Searching @INC fits in nicely with that
+design.
 
 Assign a true value to $Text::Perlate::debug to see some debugging
 information.
@@ -256,8 +235,8 @@ name that you control, such as the package name of the caller.
 Errors and warnings usually report the line number they occurred on.  However,
 Perl seems easily confused over line numbers in an eval.  Often line 1 or the
 last line will be erroneously reported as the error point.  Perlate is careful
-to keep the position of newlines correct (even when stripping blank lines), but
-as Perl sometimes gets confused this isn't always helpful.
+to keep the position of newlines correct, but as Perl sometimes gets confused
+this isn't always helpful.
 
 The "use strict;" and "use warnings;" pragmas are applied to all perlates.
 This is not optional.  If you insist on writing bad code, you can write "no
@@ -265,12 +244,10 @@ strict; no warnings;" to explicitly turn those off.
 
 This has NOT been tested with threading, which probably means it might not work
 with Apache 2.  However, I'd be happy to fix any problems with threading, if
-you send me a bug report.
+you send me a bug report.  Also send me a message if you can verify that this
+works under Apache 2 and/or threading so I can remove this paragraph.
 
-Again, be careful not to put comments in tags unless the whole tag is marked as
-a comment, as described above.
-
-Recursive perlates are supported.
+Recursive perlates are supported and have no known caveats.
 
 =head1 INSTALLATION
 
@@ -281,7 +258,9 @@ standard installation procedure.
 
 =over
 
-=item * Version 0.91, not yet released.
+=item * Version 0.91, not yet released.  Renamed the rawperl option to raw.
+Renamed the module from Template::Perlate to Text::Perlate.  Fixed problem
+preventing comments and code from sharing one tag.
 
 =item * Version 0.90, released 2007-03-02.  This is likely to be identical to
 version 1.0.  Version 1.0 may contain incompatible changes, but this is
@@ -384,6 +363,7 @@ sub main {
 	# reused.)
 
 	my $input;
+	my $reported_filename;  # The filename we tell Perl that the eval'd code is from.
 	my $package_name;
 	my $compiled;  # True if cached package found
 	if(defined $options->{input_string}) {
@@ -392,6 +372,7 @@ sub main {
 	} elsif(defined $options->{input_file}) {
 		# input from a filename
 		my $filename = $options->{input_file};
+		$reported_filename = $filename;
 
 		my $fh;
 		if($filename =~ qr~^/~s) {
@@ -427,9 +408,8 @@ sub main {
 			local $/ = undef;
 			$input = <$fh>;
 		}
-	} else {
-		die "No input specified";
 	}
+	die "No input specified" unless defined $input;
 
 	# Use a temp package name unless one was assigned above.
 	unless(defined $package_name) {
@@ -441,40 +421,17 @@ sub main {
 	# Untaint input.  If it was read from a file, it'll be tainted.  It seems
 	# reasonable to simply trust that the caller won't pass untrusted input as a
 	# perlate.
-	if(defined $input) {
-		$input =~ qr/^(.*)$/s or die "Can't happen!";
-		$input = $1;
+	$input =~ qr/^(.*)$/s or die "Can't happen!";
+	$input = $1;
+
+	if($options->{preprocess_only}) {
+		return preprocess($input);
 	}
-
-	# XXX: This should add the name of the perlate to warnings, as the logic above
-	# adds it to dies.  Is there a reasonable way to do this?
-	my $out = eval {
-		if($options->{preprocess_only}) {
-			return preprocess($input);
-		}
-		unless($compiled) {
-			$input = preprocess($input) unless $options->{rawperl};
-			compile($package_name, $input);
-		}
-		return run($package_name, $options);
-	};
-	if($@) {
-		if(defined $options->{input_file}) {
-			die $options->{input_file} . ':  ' . $@;
-		}
-		die $@;
+	unless($compiled) {
+		$input = preprocess($input) unless $options->{raw};
+		compile($package_name, $reported_filename, $input);
 	}
-	return $out;
-}
-
-# Figure out what line we're on -- only used for reporting errors
-sub get_linenum {
-	my ($code_chunks) = @_;
-
-	my $linenum = "@$code_chunks";
-	$linenum =~ s/[^\n]//sg;
-	$linenum = length $linenum;
-	return $linenum;
+	return run($package_name, $options);
 }
 
 # This translates $input into eval'able code, but does not add any supporting
@@ -483,9 +440,12 @@ sub preprocess {
 	my ($input) = @_;
 
 	# Push all the chunks of code onto an array, then join it at the end.  This is
-	# more efficient that concatenating as we go.
+	# more efficient that concatenating as we go.  Track line numbers in $linenum
+	# because we have to add a newline after every tag in case it contained a
+	# comment, then tell Perl to restart the line numbering with "#line 10".
 
 	my @code_chunks = ();
+	my $linenum = 0;
 
 	until($input eq '') {
 		unless($input =~ s/^(.*?)\[\[(\-*|\+)(#?)(\s.*?\s)(\-*|\+)\]\]//s or $input =~ s/^(.*)$//s) {
@@ -502,7 +462,6 @@ sub preprocess {
 		if($text =~ qr/(\[\[.*)/s) {
 			# $text contains [[
 			my $tag = $1;
-			my $linenum = get_linenum(\@code_chunks);
 			if(not $tag =~ qr/^\[\[(\-*|\+)#?\s/s) {
 				# [[ would've matched the RE at the top of this loop if it were in this format.
 				die "Invalid tag after line ${linenum}, missing space after [[ near $tag";
@@ -513,12 +472,11 @@ sub preprocess {
 			} elsif(not $tag =~ qr/\]\]/s) {
 				die "Invalid tag after line ${linenum}, missing ending ]] near $tag";
 			}
-			die "Invalid tag near after ${linenum}, near $tag (but I don't know why it's invalid)";  # shouldn't happen
+			die "Invalid tag near after ${linenum}, near $tag (but I can't tell why it's invalid)";  # shouldn't happen
 		}
 
 		if($text =~ qr/(.*?\]\])/s) {
 			# $text contains ]].
-			my $linenum = get_linenum(\@code_chunks);
 			die "Invalid tag after line ${linenum}, extraneous ]] near $1";
 		}
 
@@ -526,14 +484,12 @@ sub preprocess {
 			# $code contains ]].  This wouldn't slip through unless it didn't match the RE
 			# at the top of this loop.
 			my $tag = '[[' . $strip_pre . $1;
-			my $linenum = get_linenum(\@code_chunks);
 			die "Invalid tag after line ${linenum}, missing space before ]] near $tag";
 		}
 
 		if(defined $code and $code =~ qr/\[\[/s) {
 			# $code contains [[.  There would only be another [[ if there's a missing ]].
 			my $tag = '[[' . $strip_pre . $code;
-			my $linenum = get_linenum(\@code_chunks);
 			die "Invalid tag after line ${linenum}, missing ending ]] near $tag";
 		}
 
@@ -558,16 +514,22 @@ sub preprocess {
 			}
 		}
 
-		# Change $text into eval'able code and append to eval string
+		# Change $text into eval'able code and append to eval string.
 		if(defined $text and $text ne '') {
 			$text =~ s/'/'."'".'/sg;
 			$text =~ s/\\/'."\\\\".'/sg;
 			$text = "_echo('$text');";
 			push @code_chunks, $text;
+
+			# Count newlines.
+			$text =~ s/[^\n]+//sg;
+			$linenum += length($text);
 		}
 
-		# Hide stripped newlines between statements to keep line numbers consistent
+		# Hide stripped newlines between statements to keep line numbers consistent.
+		$stripped =~ s/[^\n]+//sg;
 		push @code_chunks, $stripped;
+		$linenum += length($stripped);
 
 		$stripped = '';
 		if(defined $strip_post) {
@@ -587,16 +549,18 @@ sub preprocess {
 
 		# Interpret $code
 		if(defined $code and $code ne '') {
-			if($comment_flag) {
-				# It's a comment, so don't append $code.  However, insert newlines anyway to
-				# keep line numbers consistent.
-				$code =~ s/[^\n]//sg;
-			}
-			push @code_chunks, $code;
+			# $code might end in a comment without a trailing newline, so add a newline and
+			# reset Perl's line numbering.
+			push @code_chunks, $code unless $comment_flag;
+			$code =~ s/[^\n]//sg;
+			$linenum += length($code);
+			push @code_chunks, "\n#line ${linenum}\n";
 		}
 
-		# Hide stripped newlines between statements to keep line numbers consistent
+		# Hide stripped newlines between statements to keep line numbers consistent.
+		$stripped =~ s/[^\n]+//sg;
 		push @code_chunks, $stripped;
+		$linenum += length($stripped);
 	}
 
 	# Add the setup and tear-down cruft.
@@ -632,12 +596,18 @@ sub preprocess {
 }
 
 sub compile {
-	my ($package_name, $input) = @_;
+	my ($package_name, $reported_filename, $input) = @_;
 
 	# Compile the code, but don't run it.  Run it later by calling
 	# ${package_name}::_main().
 
-	clean_eval("package ${package_name}; $input");
+	if(defined $reported_filename) {
+		$reported_filename = "#line 1 ${reported_filename}";
+	} else {
+		$reported_filename = "";
+	}
+
+	clean_eval("${reported_filename}package ${package_name}; $input");
 
 	return ();
 }
