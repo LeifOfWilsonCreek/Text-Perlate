@@ -206,8 +206,9 @@ common approach in large web applications uses a small index.pl file to call a
 module containing all the real logic.  Searching @INC fits in nicely with that
 design.
 
-Assign a true value to $Text::Perlate::debug to see some debugging
-information.
+Assign an integer to $Text::Perlate::debug to see some debugging information.
+0 is none.  1 or more enables basic debugging.  10 or more dumps the code as
+it is eval'd.  Changes to this knob are not considered relevent to the API.
 
 =head1 CAVEATS
 
@@ -377,19 +378,19 @@ sub main {
 		my $fh;
 		if($filename =~ qr~^/~s) {
 			# Use absolute path.
-			print STDERR "Using absolute path:  ${filename}.\n" if $debug;
+			print STDERR __PACKAGE__ . ":  Using absolute path:  ${filename}.\n" if $debug;
 			open($fh, "<", $filename) or die "${filename}:  $!";
 		} else {
 			# Search path for relative name.
-			print STDERR "Search path is:\n\t", join("\n\t", @{$options->{path}}), "\n" if $debug;
+			print STDERR __PACKAGE__ . ":  Search path is:\n\t", join("\n\t", @{$options->{path}}), "\n" if $debug;
 			foreach my $path (@{$options->{path}}) {
-				print STDERR "Searching path:  ${path}/${filename}..." if $debug;
+				print STDERR __PACKAGE__ . ":  Searching path:  ${path}/${filename}..." if $debug;
 				if(-e "${path}/${filename}") {
-					print STDERR "found\n" if $debug;
+					print STDERR __PACKAGE__ . ":  found\n" if $debug;
 					open($fh, "<", "${path}/${filename}") or die "${path}/${filename}:  $!";
 					last;
 				}
-				print STDERR "not found\n" if $debug;
+				print STDERR __PACKAGE__ . ":  not found\n" if $debug;
 			}
 			unless($fh) {
 				die "$filename:  not found in search path";
@@ -400,16 +401,17 @@ sub main {
 		my @stat = stat($fh);
 		if(@stat) {
 			$package_name = __PACKAGE__ . "::CachedFile::" . $stat[0] . '_' . $stat[1] . '_' . $stat[9];
-			print STDERR "Using package name ${package_name}.\n" if $debug;
+			print STDERR __PACKAGE__ . ":  Using package name ${package_name}.\n" if $debug;
 			$compiled = eval "\$${package_name}::_compiled";
 		}
+		print STDERR __PACKAGE__ . ":  Already compiled.\n" if $debug and $compiled;
 
 		if(not $compiled or $options->{preprocess_only}) {
 			local $/ = undef;
 			$input = <$fh>;
 		}
 	}
-	die "No input specified" unless defined $input;
+	die "No input specified" unless $compiled or defined $input;
 
 	# Use a temp package name unless one was assigned above.
 	unless(defined $package_name) {
@@ -425,12 +427,16 @@ sub main {
 	$input = $1;
 
 	if($options->{preprocess_only}) {
+		print STDERR __PACKAGE__ . ":  preprocess_only selected.\n" if $debug;
 		return preprocess($input);
 	}
 	unless($compiled) {
+		print STDERR __PACKAGE__ . ":  Preprocessing.\n" if $debug;
 		$input = preprocess($input) unless $options->{raw};
+		print STDERR __PACKAGE__ . ":  Compiling.\n" if $debug;
 		compile($package_name, $reported_filename, $input);
 	}
+	print STDERR __PACKAGE__ . ":  Running.\n" if $debug;
 	return run($package_name, $options);
 }
 
@@ -568,7 +574,7 @@ sub preprocess {
 		'use strict; use warnings;',
 
 		# These variables interface with external code.
-		'our (@_out, $_options, $_params, $_compiled);',
+		'our (@_out, $_options, $_params);',
 
 		# Calling _echo() is the only way code emits output.
 		'sub _echo { push @_out, @_; }',
@@ -588,7 +594,7 @@ sub preprocess {
 
 		@code_chunks,
 
-		'return join("", @_out); } $_compiled = 1;',
+		'return join("", @_out); }',
 	);
 
 	# Join with spaces between statements.
@@ -602,12 +608,12 @@ sub compile {
 	# ${package_name}::_main().
 
 	if(defined $reported_filename) {
-		$reported_filename = "#line 1 ${reported_filename}";
+		$reported_filename = "#line 1 ${reported_filename}\n";
 	} else {
 		$reported_filename = "";
 	}
 
-	clean_eval("${reported_filename}package ${package_name}; $input");
+	clean_eval("${reported_filename}package ${package_name}; $input our \$_compiled = 1;");
 
 	return ();
 }
@@ -639,7 +645,7 @@ sub run {
 # This is a separate sub because all its local variables become shared with the
 # eval'd code.
 sub clean_eval {
-#print STDERR "--------------------------------\n@_\n--------------------------------\n";
+	print STDERR "--------------------------------\n@_\n--------------------------------\n" if $debug and $debug >= 10;
 	@_ = eval "@_";
 	die $@ if $@;
 	return @_;
