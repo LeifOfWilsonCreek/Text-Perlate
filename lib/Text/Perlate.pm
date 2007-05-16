@@ -423,8 +423,10 @@ sub main {
 	# Untaint input.  If it was read from a file, it'll be tainted.  It seems
 	# reasonable to simply trust that the caller won't pass untrusted input as a
 	# perlate.
-	$input =~ qr/^(.*)$/s or die "Can't happen!";
-	$input = $1;
+	if(defined $input) {
+		$input =~ qr/^(.*)$/s or die "Can't happen!";
+		$input = $1;
+	}
 
 	if($options->{preprocess_only}) {
 		print STDERR __PACKAGE__ . ":  preprocess_only selected.\n" if $debug;
@@ -569,6 +571,13 @@ sub preprocess {
 		$linenum += length($stripped);
 	}
 
+	# Join with spaces between statements.
+	return "@code_chunks";
+}
+
+sub compile {
+	my ($package_name, $reported_filename, @code_chunks) = @_;
+
 	# Add the setup and tear-down cruft.
 	@code_chunks = (
 		'use strict; use warnings;',
@@ -597,13 +606,6 @@ sub preprocess {
 		'return join("", @_out); }',
 	);
 
-	# Join with spaces between statements.
-	return "@code_chunks";
-}
-
-sub compile {
-	my ($package_name, $reported_filename, $input) = @_;
-
 	# Compile the code, but don't run it.  Run it later by calling
 	# ${package_name}::_main().
 
@@ -613,7 +615,7 @@ sub compile {
 		$reported_filename = "";
 	}
 
-	clean_eval("${reported_filename}package ${package_name}; $input our \$_compiled = 1;");
+	clean_eval("${reported_filename}package ${package_name}; @code_chunks our \$_compiled = 1;");
 
 	return ();
 }
