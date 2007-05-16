@@ -422,7 +422,7 @@ sub main {
 
 	# Untaint input.  If it was read from a file, it'll be tainted.  It seems
 	# reasonable to simply trust that the caller won't pass untrusted input as a
-	# perlate.
+	# perlate.  $input could be undef if $compiled.
 	if(defined $input) {
 		$input =~ qr/^(.*)$/s or die "Can't happen!";
 		$input = $1;
@@ -578,7 +578,8 @@ sub preprocess {
 sub compile {
 	my ($package_name, $reported_filename, @code_chunks) = @_;
 
-	# Add the setup and tear-down cruft.
+	# Add the setup and tear-down cruft.  This can't happen in preprocess() because
+	# raw perlates need it too.
 	@code_chunks = (
 		'use strict; use warnings;',
 
