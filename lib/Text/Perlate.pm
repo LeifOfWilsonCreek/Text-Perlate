@@ -255,7 +255,7 @@ Recursive perlates are supported and have no known caveats.
 This module has no dependencies besides Perl itself.  Follow your favorite
 standard installation procedure.
 
-=head1 VERSION & HISTORY
+=head1 VERSION AND HISTORY
 
 =over
 
@@ -269,19 +269,23 @@ unlikely unless anyone suggests a really good reason.
 
 =back
 
+=head1 SEE ALSO
+
+The Subversion repository is at svn://svn.devpit.org/Text-Perlate/
+
 =head1 AUTHOR
 
-Leif Pedersen <bilbo@hobbiton.org>
+Leif Pedersen, E<lt>bilbo@hobbiton.orgE<gt>
 
 Please send suggestions and bugfixes to this address.  Even if you have nothing
 to contribute, please send a quick message.  I'd like to get an idea of how
 many people use this software.  Thanks!
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
  This may be distributed under the terms below (BSD'ish) or under the GPL.
  
- Copyright (C) 2006-2007 Leif Pedersen. All rights reserved.
+ Copyright (C) 2006-2007 by Leif Pedersen. All rights reserved.
  
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are
