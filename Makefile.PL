@@ -8,5 +8,5 @@ WriteMakefile(
     PREREQ_PM         => {}, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/Text/Perlate.pm', # retrieve abstract from module
-       AUTHOR         => 'Leif Pedersen <bilbo@freebsd.org>') : ()),
+       AUTHOR         => 'Leif Pedersen <bilbo@hobbiton.org>') : ()),
 );
