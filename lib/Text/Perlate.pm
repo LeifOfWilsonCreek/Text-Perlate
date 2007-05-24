@@ -383,7 +383,7 @@ sub main {
 		if($filename =~ qr~^/~s) {
 			# Use absolute path.
 			print STDERR __PACKAGE__ . ":  Using absolute path:  ${filename}.\n" if $debug;
-			open($fh, "<", $filename) or die "${filename}:  $!";
+			open($fh, "<", $filename) or die "${filename}:  $!\n";
 		} else {
 			# Search path for relative name.
 			print STDERR __PACKAGE__ . ":  Search path is:\n\t", join("\n\t", @{$options->{path}}), "\n" if $debug;
@@ -391,13 +391,13 @@ sub main {
 				print STDERR __PACKAGE__ . ":  Searching path:  ${path}/${filename}..." if $debug;
 				if(-e "${path}/${filename}") {
 					print STDERR __PACKAGE__ . ":  found\n" if $debug;
-					open($fh, "<", "${path}/${filename}") or die "${path}/${filename}:  $!";
+					open($fh, "<", "${path}/${filename}") or die "${path}/${filename}:  $!\n";
 					last;
 				}
 				print STDERR __PACKAGE__ . ":  not found\n" if $debug;
 			}
 			unless($fh) {
-				die "$filename:  not found in search path";
+				die "$filename:  not found in search path\n";
 			}
 		}
 
@@ -415,7 +415,7 @@ sub main {
 			$input = <$fh>;
 		}
 	}
-	die "No input specified" unless $compiled or defined $input;
+	die "No input specified\n" unless $compiled or defined $input;
 
 	# Use a temp package name unless one was assigned above.
 	unless(defined $package_name) {
@@ -476,33 +476,33 @@ sub preprocess {
 			my $tag = $1;
 			if(not $tag =~ qr/^\[\[(\-*|\+)#?\s/s) {
 				# [[ would've matched the RE at the top of this loop if it were in this format.
-				die "Invalid tag after line ${linenum}, missing space after [[ near $tag";
+				die "Invalid tag after line ${linenum}, missing space after [[ near $tag\n";
 			} elsif($tag =~ qr/\]\]/s) {
 				# ]] would've matched the RE at the top of this loop if there were a space
 				# before it.
-				die "Invalid tag after line ${linenum}, missing space before ]] near $tag";
+				die "Invalid tag after line ${linenum}, missing space before ]] near $tag\n";
 			} elsif(not $tag =~ qr/\]\]/s) {
-				die "Invalid tag after line ${linenum}, missing ending ]] near $tag";
+				die "Invalid tag after line ${linenum}, missing ending ]] near $tag\n";
 			}
 			die "Invalid tag near after ${linenum}, near $tag (but I can't tell why it's invalid)";  # shouldn't happen
 		}
 
 		if($text =~ qr/(.*?\]\])/s) {
 			# $text contains ]].
-			die "Invalid tag after line ${linenum}, extraneous ]] near $1";
+			die "Invalid tag after line ${linenum}, extraneous ]] near $1\n";
 		}
 
 		if(defined $code and $code =~ qr/^(.*?\]\])/s) {
 			# $code contains ]].  This wouldn't slip through unless it didn't match the RE
 			# at the top of this loop.
 			my $tag = '[[' . $strip_pre . $1;
-			die "Invalid tag after line ${linenum}, missing space before ]] near $tag";
+			die "Invalid tag after line ${linenum}, missing space before ]] near $tag\n";
 		}
 
 		if(defined $code and $code =~ qr/\[\[/s) {
 			# $code contains [[.  There would only be another [[ if there's a missing ]].
 			my $tag = '[[' . $strip_pre . $code;
-			die "Invalid tag after line ${linenum}, missing ending ]] near $tag";
+			die "Invalid tag after line ${linenum}, missing ending ]] near $tag\n";
 		}
 
 		# Strip space as specified by the tag modifiers
