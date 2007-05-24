@@ -263,7 +263,7 @@ Version 0.91 is likely to be identical to version 1.0.  Version 1.0 may contain
 incompatible changes, but this is unlikely unless anyone suggests a really good
 reason.
 
-=item * Version 0.91, not yet released.  Renamed the rawperl option to raw.
+=item * Version 0.91, released 2007-05-23.  Renamed the rawperl option to raw.
 Renamed the module from Template::Perlate to Text::Perlate.  Fixed problem
 preventing comments and code from sharing one tag.
 
