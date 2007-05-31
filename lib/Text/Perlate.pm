@@ -222,16 +222,18 @@ perlate is loaded more or less like any regular Perl module.  Please email the
 author if you know of a reasonable way to free that memory.
 
 Of course, general programming wisdom holds that global variables are usually a
-bad approach.  In a perlate, they are worse than usual for several reasons.
-First, their contents is never freed, since Perl doesn't provide an easy way
-for the package and its contents to be removed from memory.  Second, a
-perlate's package is reused when possible, but that is not guaranteed.  A
-global variable will maintain its value if and only if the package is reused.
-A perlate will be recompiled under a new package name, for example, if the
-file's modification time changes.  This can easily lead to a perlate acting
-inconsistently on subsequent executions.  If you really need a global variable,
-the best way to get around these problems is to give it an explicit package
-name that you control, such as the package name of the caller.
+bad approach.  In a perlate, they require unusual care for several reasons.
+First, you must take care to free their content to avoid wasting memory, even
+if the perlate aborts via die().  Second, you must take care to initialize it
+to the value you expect every time the perlate executes, even if you need it
+initialized to undef; this is necessary because a perlate's package (namespace)
+is reused when possible, which means that a global variable's value will
+usually (but not always) persist between repeated executions.  Third, recursive
+templates need to save and restore the values of global variables.  If you
+really need a global variable, declare it with the "local" keyword instead of
+"our" because it addresses all of these issues.  If you need a variable to keep
+a persistent value, give it an explicit package name that you control, such as
+the package name of the caller.
 
 Errors and warnings usually report the line number they occurred on.  However,
 Perl seems easily confused over line numbers in an eval.  Often line 1 or the
