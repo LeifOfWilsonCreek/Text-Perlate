@@ -226,20 +226,25 @@ bad approach.  In a perlate, they require unusual care for several reasons.
 First, you must take care to free their content to avoid wasting memory, even
 if the perlate aborts via die().  Second, you must take care to initialize it
 to the value you expect every time the perlate executes, even if you need it
-initialized to undef; this is necessary because a perlate's package (namespace)
+initialized to undef; this is necessary because a perlate's namespace (package)
 is reused when possible, which means that a global variable's value will
 usually (but not always) persist between repeated executions.  Third, recursive
 templates need to save and restore the values of global variables.  If you
-really need a global variable, declare it with the "local" keyword instead of
-"our" because it addresses all of these issues.  If you need a variable to keep
-a persistent value, give it an explicit package name that you control, such as
-the package name of the caller.
+really need a global variable, always use the "local" keyword because it
+addresses all of these issues.  If you need a variable to keep a persistent
+value, give it an explicit package name that you control, such as the package
+name of the caller, so it doesn't break if Perlate changes the name of the
+execution's namespace.  (Perlate tries to reuse the same namespace, but never
+guarantees it.  The logic for deciding whether to reuse it will probably change
+between versions.)  A concise way to declare such variables looks like this:
 
-Errors and warnings usually report the line number they occurred on.  However,
+	local our $foo;
+
+Errors and warnings usually report the line number they occur on.  However,
 Perl seems easily confused over line numbers in an eval.  Often line 1 or the
 last line will be erroneously reported as the error point.  Perlate is careful
-to keep the position of newlines correct, but as Perl sometimes gets confused
-this isn't always helpful.
+to keep the line numbers as seen by Perl consistent with the perlate, but as
+Perl sometimes gets confused this isn't always helpful.
 
 The "use strict;" and "use warnings;" pragmas are applied to all perlates.
 This is not optional.  If you insist on writing bad code, you can write "no
