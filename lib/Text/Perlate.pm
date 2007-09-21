@@ -169,7 +169,13 @@ absolute (begins with a slash), the path and correct directory are not
 searched.  See also $options->{path}.
 
 =item * $options->{input_string} specifies the source for a perlate as a
-literal string.  Overrides both the input_file and input_string defaults.
+literal string.  Overrides both the input_file and input_string defaults.  If
+using this approach, see also $options->{cache_id}.
+
+=item * $options->{cache_id} specifies a unique ID for this perlate.  If the
+cache_id already exists, the perlate is not parsed again and the existing
+package name is reused.  See also CAVEATS with regard to memory usage.  (This
+is ignored when specifying $options->{input_file}.)
 
 =item * $options->{params} contains the input parameters to the perlate itself.
 These can be emitted into the perlate's output by calling _get("param name") or
@@ -182,12 +188,16 @@ $defaults->{path}, your code may work better with future code of yours if you
 unshift them onto the array rather than using direct assignment.  The search
 order is always:  current directory, $options->{path}, $defaults->{path}, @INC.
 The path option as seen from inside the perlate (called $_options->{path})
-includes all of these directories.
+includes all of these directories.  See also $options->{skip_path}.
+
+=item * $options->{skip_path} specifies to interpret filenames literally rather
+than searching $options->{path}, @INC, etc.  (Ignored without
+$options->{input_file}.)
 
 =item * $options->{raw} may be set to true to indicate that the whole file is
 Perl code without [[ ]] tags.  This is useful for using parameter passing and
 searching $options->{path}.  This is probably not going to be useful very
-often, except perhaps for debugging.
+often, except perhaps for debugging, however it is officially supported.
 
 =item * $options->{preprocess_only} may be set to true to return the
 preprocessed file without executing (or caching) anything.  This is probably
@@ -213,8 +223,8 @@ it is eval'd.  Changes to this knob are not considered relevent to the API.
 =head1 CAVEATS
 
 As described above, perlates may be specified by name, or the contents of an
-unnamed perlate may be passed directly.  Naming a file is preferable because
-Perlate will compile it only once unless it is modified.  The device number,
+unnamed perlate may be passed directly.  Naming a file or cache_id is
+preferable because Perlate will then compile each perlate only once.  For files, the device number,
 inode number, and modification time are used to uniquely identify the specified
 file.  Without caching, the memory usage will grow slightly with each
 execution, since there is no way to unload a module from memory, and each
@@ -266,9 +276,12 @@ standard installation procedure.
 
 =over
 
-Version 0.91 is likely to be identical to version 1.0.  Version 1.0 may contain
+Version 0.92 is likely to be identical to version 1.0.  Version 1.0 may contain
 incompatible changes, but this is unlikely unless anyone suggests a really good
 reason.
+
+=item * Version 0.92, released XXXX-XX-XX.  Added options skip_path and
+cache_id.
 
 =item * Version 0.91, released 2007-05-23.  Renamed the rawperl option to raw.
 Renamed the module from Template::Perlate to Text::Perlate.  Fixed problem
@@ -355,15 +368,14 @@ sub main {
 	# Add @INC to search path.
 	push @{$options->{path}}, @INC;
 
-	# $package_name is unique for each execution.  This allows perlates to recurse
-	# (otherwise, recursion would clobber $_params, for example!) simply by calling
-	# this module again.  Also, this prevents sub names from conflicting; since all
-	# subs are public and named at the root of the current package (not in the
-	# current lexical scope), if the code declares a sub named main() in a simple
-	# eval with no package statement, it will replace this module's main() on the
-	# next execution!  Also, this allows us to cache compilations of a module;
-	# after eval'ing to compile the perlate, it can be executed multiple times by
-	# calling ${package_name}::_main() multiple times.
+	# $package_name is unique for each compilation.  This prevents sub names from
+	# conflicting; since all subs are public and named globally in the current
+	# package (not in the current lexical scope), if the code declares a sub named
+	# main() in a simple eval with no package statement, it will replace this
+	# module's main() on the next execution!  Also, declaring a package allows us
+	# to cache compilations of a module; after eval'ing to compile the perlate, it
+	# can be executed multiple times by calling ${package_name}::_main() multiple
+	# times.
 	#
 	# The unfortunate side-effect is that these packages are never destroyed, so
 	# they are a memory leak because global variables in the namespace and Perl's
@@ -383,13 +395,20 @@ sub main {
 	if(defined $options->{input_string}) {
 		# input from a string
 		$input = $options->{input_string};
+		warn "input_string specified without a cache_id (use explicit undef to quiet this warning)" unless exists $options->{cache_id};
+		if(defined $options->{cache_id}) {
+			$reported_filename = $options->{cache_id};
+			$package_name = __PACKAGE__ . "::ExplicitCacheId::" . $options->{cache_id};
+			print STDERR __PACKAGE__ . ":  Using package name ${package_name}.\n" if $debug;
+			$compiled = eval "\$${package_name}::_compiled";
+		}
 	} elsif(defined $options->{input_file}) {
 		# input from a filename
 		my $filename = $options->{input_file};
 		$reported_filename = $filename;
 
 		my $fh;
-		if($filename =~ qr~^/~s) {
+		if($options->{skip_path} or $filename =~ qr~^/~s) {
 			# Use absolute path.
 			print STDERR __PACKAGE__ . ":  Using absolute path:  ${filename}.\n" if $debug;
 			open($fh, "<", $filename) or die "${filename}:  $!\n";
@@ -412,18 +431,17 @@ sub main {
 
 		# Use the device number, inode number, and mod time to uniquely identify this file in our cache.
 		my @stat = stat($fh);
-		if(@stat) {
-			$package_name = __PACKAGE__ . "::CachedFile::" . $stat[0] . '_' . $stat[1] . '_' . $stat[9];
-			print STDERR __PACKAGE__ . ":  Using package name ${package_name}.\n" if $debug;
-			$compiled = eval "\$${package_name}::_compiled";
-		}
-		print STDERR __PACKAGE__ . ":  Already compiled.\n" if $debug and $compiled;
+		die "$filename:  successful open() but stat() failed:  $!\n" unless @stat;
+		$package_name = __PACKAGE__ . "::CachedFile::" . $stat[0] . '_' . $stat[1] . '_' . $stat[9];
+		print STDERR __PACKAGE__ . ":  Using package name ${package_name}.\n" if $debug;
+		$compiled = eval "\$${package_name}::_compiled";
 
 		if(not $compiled or $options->{preprocess_only}) {
 			local $/ = undef;
 			$input = <$fh>;
 		}
 	}
+	print STDERR __PACKAGE__ . ":  Already compiled.\n" if $debug and $compiled;
 	die "No input specified\n" unless $compiled or defined $input;
 
 	# Use a temp package name unless one was assigned above.
