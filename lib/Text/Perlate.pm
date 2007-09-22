@@ -14,13 +14,28 @@ Text::Perlate - Template module using Perl as the langauge.
 
 =head1 SYNOPSIS
 
+There are two ways to call Text::Perlate.  It can be called as part of a
+larger program to parse templates, or it can be installed as a direct handler
+for Apache.
+
 	use Text::Perlate;
-
 	$Text::Perlate::defaults->{...} = ...;
-
 	print Text::Perlate::main($options);
 
-To catch errors, wrap calls to this module in eval{} and check $@.
+To catch errors, wrap calls to this module in eval{} and check $@.  To use this
+as a direct Apache handler, add the following to httpd.conf:
+
+	<IfModule mod_perl.c>
+		PerlTaintCheck On
+		PerlWarn On
+		PerlRequire /usr/local/etc/apache/startup.pl
+		PerlModule Text::Perlate
+		<Files *.pl>
+			SetHandler perl-script
+			PerlHandler Text::Perlate
+			PerlSendHeader On
+		</Files>
+	</IfModule>
 
 =head1 DESCRIPTION
 
@@ -683,6 +698,43 @@ sub clean_eval {
 	@_ = eval "@_";
 	die $@ if $@;
 	return @_;
+}
+
+# XXX: Can I tweak this so it doesn't require Apache unless you actually call this function?
+use Apache::Constants "OK", "DECLINED", "FORBIDDEN", "NOT_FOUND";
+sub handler {
+	my ($r) = @_;
+
+	# Filename of the program to execute.
+	my $filename = $r->filename();
+
+	# Sanity checks for opening the file.
+	unless(stat $filename) {
+		$r->log_reason($!);
+		return NOT_FOUND;
+	}
+	return DECLINED unless -f _;  # $filename isn't a plain file.  (It's probably a directory.)
+
+	# Read input variables.  This is kinda wonky because of bugs in mod_perl.
+	my $iparams = [$r->args];
+	pop @$iparams while @$iparams and not defined $iparams->[-1];
+	push @$iparams, "" if @$iparams % 2;  # Ensure even number of elements; works around a bug triggered when the last parameter's value is "".
+	if($r->method eq "POST") {
+		push @$iparams, $r->content;
+		pop @$iparams while @$iparams and not defined $iparams->[-1];
+		push @$iparams, "" if @$iparams % 2;  # Ensure even number of elements; works around a bug triggered when the last parameter's value is "".
+	}
+	foreach my $iparam (@$iparams) {
+		$iparam = "" unless defined $iparam;  # {sigh}  empty strings are stored as undef.
+	}
+	$iparams = {@$iparams};
+
+	$r->print(main({
+		input_file => $filename,
+		params => {iparams => $iparams},
+	}));
+
+	return OK;
 }
 
 1;
