@@ -184,8 +184,8 @@ absolute (begins with a slash), the path and correct directory are not
 searched.  See also $options->{path}.
 
 =item * $options->{input_string} specifies the source for a perlate as a
-literal string.  Overrides both the input_file and input_string defaults.  If
-using this approach, see also $options->{cache_id}.
+literal string.  Overrides both the input_file and input_string defaults.  See
+also $options->{cache_id}.
 
 =item * $options->{cache_id} specifies a unique ID for this perlate.  If the
 cache_id already exists, the perlate is not parsed again and the existing
@@ -715,26 +715,15 @@ sub handler {
 	}
 	return DECLINED unless -f _;  # $filename isn't a plain file.  (It's probably a directory.)
 
-	# Read input variables.  This is kinda wonky because of bugs in mod_perl.
-	my $iparams = [$r->args];
-	pop @$iparams while @$iparams and not defined $iparams->[-1];
-	push @$iparams, "" if @$iparams % 2;  # Ensure even number of elements; works around a bug triggered when the last parameter's value is "".
-	if($r->method eq "POST") {
-		push @$iparams, $r->content;
-		pop @$iparams while @$iparams and not defined $iparams->[-1];
-		push @$iparams, "" if @$iparams % 2;  # Ensure even number of elements; works around a bug triggered when the last parameter's value is "".
-	}
-	foreach my $iparam (@$iparams) {
-		$iparam = "" unless defined $iparam;  # {sigh}  empty strings are stored as undef.
-	}
-	$iparams = {@$iparams};
-
 	$r->print(main({
 		input_file => $filename,
-		params => {iparams => $iparams},
+		params => {
+			r => $r,
+		},
+		skip_path => 1,
 	}));
 
 	return OK;
 }
 
-1;
+1
