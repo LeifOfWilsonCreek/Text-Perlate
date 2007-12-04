@@ -4,8 +4,6 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.91';
-
 =pod
 
 =head1 NAME
