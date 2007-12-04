@@ -4,7 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.91';
+our $VERSION = '0.92';
 
 =pod
 
@@ -280,8 +280,8 @@ Version 0.92 is likely to be identical to version 1.0.  Version 1.0 may contain
 incompatible changes, but this is unlikely unless anyone suggests a really good
 reason.
 
-=item * Version 0.92, released XXXX-XX-XX.  Added options skip_path and
-cache_id.
+=item * Version 0.92, released 2007-12-03.  Added options skip_path and
+cache_id.  Moved repository to Git.  Added Text::Perlate::Apache.
 
 =item * Version 0.91, released 2007-05-23.  Renamed the rawperl option to raw.
 Renamed the module from Template::Perlate to Text::Perlate.  Fixed problem
